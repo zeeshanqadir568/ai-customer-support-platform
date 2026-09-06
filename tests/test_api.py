@@ -16,6 +16,22 @@ def test_health(client):
     assert resp.json()["status"] == "healthy"
 
 
+def test_index_serves_html(client):
+    resp = client.get("/")
+    assert resp.status_code == 200
+    assert "text/html" in resp.headers["content-type"]
+    assert "AI Customer Support Platform" in resp.text
+
+
+def test_config_reports_llm_state(client, settings):
+    settings.anthropic_api_key = "test-key"
+    resp = client.get("/config")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["llm_configured"] is True
+    assert body["model"] == settings.model
+
+
 def test_chat_resolved_flow(client):
     _use_llm(
         [ToolUseBlock(name="lookup_order", input={"order_id": "ORD-1002"})],
