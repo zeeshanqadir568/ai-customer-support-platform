@@ -132,6 +132,42 @@ Each response also updates the **Last request analysis** panel (tools called,
 reasoning steps, resolution status) and, on escalation, adds a row to the
 **Support queue** that you can mark resolved.
 
+## Explore Without an API Key
+
+You can run and inspect most of the app before setting any key. The chat agent
+is the only part that needs one — it calls the Anthropic Messages API to do the
+reasoning, and there is no OpenAI or other-provider fallback in the code.
+
+Start the server (`.\start.ps1` / `make run`) with an empty `ANTHROPIC_API_KEY`
+and open `http://localhost:8000`.
+
+**Works without a key:**
+
+| What | How to check |
+| --- | --- |
+| Web UI loads, fully styled | Open `http://localhost:8000` — you'll see a "No API key set" banner; the model pill reads `… · inactive` |
+| Support queue | Create a ticket (below), then watch it appear in the right-hand queue and mark it resolved |
+| Ticket API | `GET/POST /tickets`, `GET/PATCH /tickets/{id}` |
+| Health & config | `GET /health`, `GET /config` (returns `"llm_configured": false`) |
+| Swagger / OpenAPI | `http://localhost:8000/docs`, `/openapi.json` |
+| Full test suite | `pytest` → `29 passed` (tests use a scripted stand-in LLM, no network) |
+
+```bash
+# create a ticket, then list it (PowerShell: use curl.exe)
+curl -s -X POST http://localhost:8000/tickets \
+  -H "Content-Type: application/json" \
+  -d '{"subject":"Damaged item","body":"Box arrived crushed","reason":"manual","customer_email":"ada@example.com"}'
+curl -s http://localhost:8000/tickets
+curl -s -X PATCH http://localhost:8000/tickets/1 \
+  -H "Content-Type: application/json" -d '{"status":"resolved"}'
+```
+
+**Needs a key:** typing a message and pressing **Analyze request**. Without a key
+it returns a clear `503` in the chat box (no crash), and the pipeline / analysis
+panel stay empty because there is no agent run to show. To see the agent reason,
+call tools, and resolve or escalate — the core of the demo — add your key to
+`.env` and restart.
+
 ## Screenshots
 
 _Not committed yet._ To capture your own: start the server, open

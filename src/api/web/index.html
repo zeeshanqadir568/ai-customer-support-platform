@@ -636,16 +636,19 @@
       var res = await fetch("/config");
       var cfg = await res.json();
       window.__maxSteps = cfg.max_agent_steps;
-      modelPill.innerHTML = "model: <b>" + esc(cfg.model) + "</b>";
       if (cfg.llm_configured) {
+        modelPill.innerHTML = "model: <b>" + esc(cfg.model) + "</b>";
         statusPill.innerHTML = '<span class="dot ok"></span>agent online';
       } else {
+        modelPill.innerHTML = "model: <b>" + esc(cfg.model) + "</b> · inactive";
         statusPill.innerHTML = '<span class="dot warn"></span>no API key';
         noticeEl.hidden = false;
         noticeEl.innerHTML =
-          "The chat agent needs an Anthropic API key. Set " +
-          "<code>ANTHROPIC_API_KEY</code> in <code>.env</code> and restart the " +
-          "server. The support queue and ticket actions work without it.";
+          "<b>No API key set.</b> The chat agent uses the Anthropic Messages API — " +
+          "add <code>ANTHROPIC_API_KEY</code> to <code>.env</code> and restart to " +
+          "enable it. Everything else works now: browse the UI, use the support " +
+          "queue, open and resolve tickets, and read the API docs at " +
+          "<a href=\"/docs\">/docs</a>.";
       }
     } catch (err) {
       statusPill.innerHTML = '<span class="dot danger"></span>server unreachable';
