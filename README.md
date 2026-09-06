@@ -168,13 +168,6 @@ panel stay empty because there is no agent run to show. To see the agent reason,
 call tools, and resolve or escalate — the core of the demo — add your key to
 `.env` and restart.
 
-## Screenshots
-
-_Not committed yet._ To capture your own: start the server, open
-`http://localhost:8000`, run a couple of the examples above, and screenshot the
-chat with the pipeline and analysis panel. Drop images in `docs/` and link them
-here.
-
 ## Architecture
 
 ```mermaid
@@ -444,8 +437,7 @@ submitting.
 
 ## License
 
-No license file yet — all rights reserved by the author for now. A license will
-be added before any public deployment.
+[MIT](LICENSE) © Zeeshan Qadir. Use it, fork it, build on it.
 
 ## Author
 
