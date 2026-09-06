@@ -72,13 +72,16 @@ The long-term goal is to build a system that can **understand requests, retrieve
   3. the loop exceeds its step budget
 * **Ticketing system** — every escalation opens a ticket with a transcript snapshot; full CRUD API
 * **Pluggable LLM seam** — the agent depends on a small protocol, so the loop is unit-tested with a scripted client and zero network calls
-* Seeded demo data (customers + orders) and a 25-test suite
+* **Web UI** served at `/` — a single-file chat page with a live support queue, tool-call traces, and escalation badges (no build step)
+* Seeded demo data (customers + orders) and a 27-test suite
 
 ### API
 
 | Method | Path | Purpose |
 | ------ | ---- | ------- |
+| `GET`  | `/` | Web UI (chat page + support queue) |
 | `GET`  | `/health` | Liveness check |
+| `GET`  | `/config` | Non-secret settings the UI needs (`llm_configured`, `model`) |
 | `POST` | `/chat` | Run the support agent on one customer message |
 | `GET`  | `/tickets` | List tickets (optional `?status=`) |
 | `POST` | `/tickets` | Open a ticket manually |
@@ -288,21 +291,31 @@ The goal is to allow human support teams to spend more time on difficult problem
 
 # 🎬 Demo
 
-## Current API Demo
-
 Start the development server:
 
 ```bash
 uvicorn api.main:app --reload
 ```
 
-Open:
+Then open the links below.
 
-```text
-http://127.0.0.1:8000/docs
-```
+| URL | What it is |
+| --- | ---------- |
+| <http://127.0.0.1:8000/> | **Web UI** — a chat page with a live support queue |
+| <http://127.0.0.1:8000/docs> | Interactive Swagger API |
 
-You will see the automatically generated Swagger UI.
+## Web UI
+
+The root path serves a single self-contained page (no build step, no Node) that
+talks to the same API:
+
+* chat with the agent, with suggested prompts to get started
+* each reply shows an expandable **tool-call trace** and a `resolved` /
+  `escalated` badge
+* a **Support queue** sidebar lists tickets in real time and lets an agent mark
+  them resolved
+* if `ANTHROPIC_API_KEY` is not set the page still loads and says so — the
+  queue and ticket actions keep working; only the chat needs the key
 
 ### Health Check
 
@@ -385,9 +398,10 @@ ai-customer-support-platform/
 │
 ├── src/
 │   ├── api/
-│   │   ├── main.py            # FastAPI app + lifespan (init DB, seed)
+│   │   ├── main.py            # FastAPI app + lifespan (init DB, seed) + serves the UI
 │   │   ├── deps.py            # settings / DB / LLM / conversation-store providers
-│   │   └── routes/            # health, chat, tickets
+│   │   ├── routes/            # health, config, chat, tickets
+│   │   └── web/index.html     # single-file chat UI (served at /)
 │   │
 │   ├── agent/
 │   │   ├── orchestrator.py    # the reason→act loop + escalation backstops
@@ -406,7 +420,7 @@ ai-customer-support-platform/
 │   ├── models/schemas.py      # API request/response models
 │   └── data/seed.py           # demo customers + orders
 │
-├── tests/                     # 25 tests, no network (scripted LLM)
+├── tests/                     # 27 tests, no network (scripted LLM)
 │
 ├── .env.example
 ├── .gitignore
@@ -564,6 +578,7 @@ The project follows a test-as-you-build approach so new functionality is verifie
 * [x] AI support agent (reason→act loop)
 * [x] Agent tools (customer / order / refund lookups)
 * [x] Human escalation (model-driven + deterministic backstops)
+* [x] Web UI (chat page + live support queue, served at `/`)
 * [ ] Conversation persistence (currently in-process only)
 * [ ] RAG pipeline
 * [ ] Knowledge-base management

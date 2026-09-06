@@ -1,19 +1,24 @@
 """FastAPI application entrypoint.
 
 Run: uvicorn api.main:app --reload   (after `pip install -e .`)
-Docs: http://127.0.0.1:8000/docs
+Web UI: http://127.0.0.1:8000/
+Docs:   http://127.0.0.1:8000/docs
 """
 
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 
 from api.routes import chat, health, tickets
 from core import db
 from core.config import get_settings
 from data.seed import seed
+
+WEB_DIR = Path(__file__).parent / "web"
 
 
 @asynccontextmanager
@@ -42,3 +47,9 @@ app = FastAPI(
 app.include_router(health.router)
 app.include_router(chat.router)
 app.include_router(tickets.router)
+
+
+@app.get("/", include_in_schema=False)
+def index() -> FileResponse:
+    """Serve the single-page chat UI."""
+    return FileResponse(WEB_DIR / "index.html")
