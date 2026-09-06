@@ -80,6 +80,29 @@ def test_chat_requires_llm_configuration(client, settings):
     assert resp.status_code == 503
 
 
+def test_chat_rejects_empty_message(client):
+    _use_llm([TextBlock(text="unused")])
+    resp = client.post("/chat", json={"message": "   "})
+    assert resp.status_code == 422
+
+
+def test_chat_turns_agent_failure_into_clean_error(client):
+    class BoomLLM:
+        def create(self, **kwargs):
+            raise RuntimeError("model connection dropped")
+
+    app.dependency_overrides[get_llm] = lambda: BoomLLM()
+    try:
+        resp = client.post("/chat", json={"message": "Where is ORD-1002?"})
+    finally:
+        app.dependency_overrides.pop(get_llm, None)
+
+    assert resp.status_code == 502
+    detail = resp.json()["detail"]
+    assert "try again" in detail.lower()
+    assert "traceback" not in detail.lower()
+
+
 def test_ticket_update_status(client):
     created = client.post(
         "/tickets", json={"subject": "S", "body": "B", "reason": "manual"}

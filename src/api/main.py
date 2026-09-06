@@ -1,22 +1,27 @@
 """FastAPI application entrypoint.
 
-Run: uvicorn api.main:app --reload   (after `pip install -e .`)
-Web UI: http://127.0.0.1:8000/
-Docs:   http://127.0.0.1:8000/docs
+Run:    python -m app         (from the repo root, after `pip install -e .`)
+   or:  uvicorn api.main:app --reload
+Web UI: http://localhost:8000/
+Docs:   http://localhost:8000/docs
 """
 
 from __future__ import annotations
 
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse, JSONResponse
 
 from api.routes import chat, health, tickets
 from core import db
 from core.config import get_settings
 from data.seed import seed
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 WEB_DIR = Path(__file__).parent / "web"
 
@@ -31,6 +36,11 @@ async def lifespan(app: FastAPI):
             seed(conn)
     finally:
         conn.close()
+    if not settings.llm_configured:
+        logger.warning(
+            "ANTHROPIC_API_KEY is not set - POST /chat will return 503. "
+            "The web UI, support queue, and ticket APIs still work."
+        )
     yield
 
 
@@ -49,7 +59,22 @@ app.include_router(chat.router)
 app.include_router(tickets.router)
 
 
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Last-resort backstop: never leak a stack trace to the browser."""
+    logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": (
+                "Something went wrong handling this request "
+                f"({type(exc).__name__}). Check the server logs for details."
+            )
+        },
+    )
+
+
 @app.get("/", include_in_schema=False)
 def index() -> FileResponse:
-    """Serve the single-page chat UI."""
+    """Serve the single-page demo UI."""
     return FileResponse(WEB_DIR / "index.html")

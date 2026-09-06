@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 TicketStatus = Literal["open", "in_progress", "resolved"]
 
@@ -20,6 +20,14 @@ class ChatRequest(BaseModel):
     conversation_id: str | None = Field(
         None, description="Pass the id returned by a previous turn to continue it."
     )
+
+    @field_validator("message")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("message must not be empty or whitespace only")
+        return stripped
 
 
 class ToolCallView(BaseModel):
