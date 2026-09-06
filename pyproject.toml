@@ -17,6 +17,7 @@ dependencies = [
     "uvicorn[standard]>=0.34,<1.0",
     "pydantic>=2.10,<3.0",
     "pydantic-settings>=2.7,<3.0",
+    "anthropic>=1.4,<2.0",
 ]
 
 [project.optional-dependencies]
