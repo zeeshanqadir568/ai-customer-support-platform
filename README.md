@@ -54,7 +54,7 @@ Accurate Response
 
 The long-term goal is to build a system that can **understand requests, retrieve trusted information, take appropriate actions, and escalate cases when AI should not handle them automatically.**
 
-> 🚧 **Current status:** Early development. The FastAPI foundation and health-check API are currently implemented. AI, RAG, ticketing, tools, and automation are being developed incrementally.
+> 🚧 **Current status:** Early development. The **agentic support core** is implemented: a reason→act agent loop over the Anthropic Messages API, read-only business tools backed by SQLite, a ticketing system, and deterministic human-escalation backstops. RAG, auth, automation, and deployment are next.
 
 ---
 
@@ -62,26 +62,48 @@ The long-term goal is to build a system that can **understand requests, retrieve
 
 ## ✅ Currently Implemented
 
-* FastAPI backend
-* Modular Python project structure
-* REST API foundation
-* Health-check endpoint
-* OpenAPI specification
-* Interactive Swagger documentation
-* Python package configuration
-* Development environment using `.venv`
+* FastAPI backend, modular package layout, OpenAPI / Swagger docs
+* **Agentic support loop** — the agent reasons, calls tools, and answers, capped at `MAX_AGENT_STEPS` iterations
+* **Business tools** (read-only, SQLite-backed): `lookup_customer`, `lookup_order`, `check_refund_eligibility`
+* **Refund policy engine** — auto-approval only inside the return window, under an amount limit, delivered, not already refunded
+* **Human-in-the-loop escalation** with three deterministic backstops:
+  1. the model calls `escalate_to_human` (complaints, security, low confidence)
+  2. the model calls a **sensitive** tool (`issue_refund`) — intercepted, never executed by the AI, turned into a ticket
+  3. the loop exceeds its step budget
+* **Ticketing system** — every escalation opens a ticket with a transcript snapshot; full CRUD API
+* **Pluggable LLM seam** — the agent depends on a small protocol, so the loop is unit-tested with a scripted client and zero network calls
+* Seeded demo data (customers + orders) and a 25-test suite
 
 ### API
 
-```http
-GET /health
-```
+| Method | Path | Purpose |
+| ------ | ---- | ------- |
+| `GET`  | `/health` | Liveness check |
+| `POST` | `/chat` | Run the support agent on one customer message |
+| `GET`  | `/tickets` | List tickets (optional `?status=`) |
+| `POST` | `/tickets` | Open a ticket manually |
+| `GET`  | `/tickets/{id}` | Fetch one ticket |
+| `PATCH`| `/tickets/{id}` | Update ticket status |
 
-Example response:
+`POST /chat` requires `ANTHROPIC_API_KEY`; without it the endpoint returns `503` and the tools/tickets APIs still work.
+
+Example — `POST /chat`:
+
+```json
+{ "message": "Where is my order ORD-1002?", "customer_email": "ada@example.com" }
+```
 
 ```json
 {
-  "status": "healthy"
+  "conversation_id": "9f2c...",
+  "reply": "Your USB-C hub (ORD-1002) shipped 3 days ago and is on its way.",
+  "resolved": true,
+  "escalated": false,
+  "ticket_id": null,
+  "steps": 2,
+  "tool_calls": [
+    { "step": 1, "name": "lookup_order", "input": { "order_id": "ORD-1002" }, "outcome": "{\"found\": true, ...}" }
+  ]
 }
 ```
 
@@ -271,7 +293,7 @@ The goal is to allow human support teams to spend more time on difficult problem
 Start the development server:
 
 ```bash
-uvicorn src.api.main:app --reload
+uvicorn api.main:app --reload
 ```
 
 Open:
@@ -363,27 +385,30 @@ ai-customer-support-platform/
 │
 ├── src/
 │   ├── api/
-│   │   └── main.py
+│   │   ├── main.py            # FastAPI app + lifespan (init DB, seed)
+│   │   ├── deps.py            # settings / DB / LLM / conversation-store providers
+│   │   └── routes/            # health, chat, tickets
 │   │
-│   ├── agents/
-│   │   └── ...
-│   │
-│   ├── core/
-│   │   └── ...
-│   │
-│   ├── models/
-│   │   └── ...
+│   ├── agent/
+│   │   ├── orchestrator.py    # the reason→act loop + escalation backstops
+│   │   ├── tools.py           # tool schemas + dispatcher
+│   │   ├── llm.py             # LLMClient protocol, Anthropic + scripted clients
+│   │   └── prompts.py         # support system prompt
 │   │
 │   ├── services/
-│   │   └── ...
+│   │   ├── business.py        # lookup_customer / lookup_order / refund policy
+│   │   └── tickets.py         # ticket persistence
 │   │
-│   ├── rag/
-│   │   └── ...
+│   ├── core/
+│   │   ├── config.py          # pydantic-settings
+│   │   └── db.py              # SQLite connection + schema
 │   │
-│   └── ...
+│   ├── models/schemas.py      # API request/response models
+│   └── data/seed.py           # demo customers + orders
 │
-├── tests/
+├── tests/                     # 25 tests, no network (scripted LLM)
 │
+├── .env.example
 ├── .gitignore
 ├── README.md
 ├── pyproject.toml
@@ -427,13 +452,20 @@ source .venv/bin/activate
 ## 3. Install dependencies
 
 ```bash
-pip install -e .
+pip install -e ".[dev]"
 ```
 
-## 4. Run the API
+## 4. Configure the environment
 
 ```bash
-uvicorn src.api.main:app --reload
+cp .env.example .env
+# then set ANTHROPIC_API_KEY in .env to enable POST /chat
+```
+
+## 5. Run the API
+
+```bash
+uvicorn api.main:app --reload
 ```
 
 API:
@@ -525,16 +557,16 @@ The project follows a test-as-you-build approach so new functionality is verifie
 * [x] FastAPI application
 * [x] Health endpoint
 * [x] OpenAPI documentation
-* [ ] Configuration system
-* [ ] Customer & conversation models
-* [ ] Ticket management
-* [ ] Database integration
-* [ ] LLM integration
-* [ ] AI support agent
+* [x] Configuration system (`pydantic-settings`)
+* [x] Database integration (SQLite)
+* [x] Ticket management (models + CRUD API)
+* [x] LLM integration (Anthropic Messages API, pluggable client)
+* [x] AI support agent (reason→act loop)
+* [x] Agent tools (customer / order / refund lookups)
+* [x] Human escalation (model-driven + deterministic backstops)
+* [ ] Conversation persistence (currently in-process only)
 * [ ] RAG pipeline
 * [ ] Knowledge-base management
-* [ ] Agent tools
-* [ ] Human escalation
 * [ ] Authentication & authorization
 * [ ] Workflow automation
 * [ ] Docker
