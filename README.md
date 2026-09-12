@@ -18,6 +18,12 @@ you every step it took.
   <img src="https://img.shields.io/badge/status-working%20demo-orange" alt="Working demo">
 </p>
 
+## Screenshots
+
+| Chat + pipeline view | Support queue | API docs |
+|---|---|---|
+| ![Chat UI](docs/screenshots/support-platform-1-chat.png) | ![Support queue](docs/screenshots/support-platform-3-queue.png) | ![API docs](docs/screenshots/support-platform-2-docs.png) |
+
 ---
 
 ## What Is This?
