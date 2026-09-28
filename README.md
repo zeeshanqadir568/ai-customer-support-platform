@@ -1,5 +1,7 @@
 # AI Customer Support Platform
 
+[![CI](https://github.com/zeeshanqadir568/ai-customer-support-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/zeeshanqadir568/ai-customer-support-platform/actions/workflows/ci.yml)
+
 An AI support agent you can run on your own machine. It reads a customer message,
 looks up real order and account data with tools, resolves what it can safely
 handle, and opens a human ticket for everything else — with a web UI that shows
